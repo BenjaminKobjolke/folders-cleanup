@@ -11,6 +11,8 @@ The Folders Cleanup script automatically sorts files in specified directories in
 - **Multiple Directories:** Can handle multiple directories listed in `settings.ini`.
 - **Custom Date Formats:** Customisable date format used for subfolder names.
 - **Two Modes:** Per-file modification-date sorting, or today-bundle sorting.
+- **Ignore List:** Skip specific files or folders by name (case-insensitive).
+- **Empty Folder Cleanup:** In `today` mode, empty top-level folders are deleted instead of moved.
 - **Validated Configuration:** Settings are parsed via Pydantic and report clear errors for invalid values.
 
 ## Requirements
@@ -49,6 +51,10 @@ The Folders Cleanup script automatically sorts files in specified directories in
 ;                      named with today's date
 mode = by_modified_date
 date_format = %%Y%%m%%d
+; ignore is a comma-separated list of file or folder names to skip.
+; Matching is case-insensitive. Ignored folders are never moved or deleted
+; (even if empty). Leave empty to disable.
+ignore = archive, _pinned
 
 [Directories]
 base_dir1 = Z:\Resilio Sync\Working
@@ -57,6 +63,9 @@ base_dir2 = C:\Another\Path
 
 - **mode:** `by_modified_date` or `today`. If omitted, `by_modified_date` is used.
 - **date_format:** `strftime`-style format for subfolder names. Each `%` must be escaped as `%%` because `configparser` uses `%` for interpolation.
+- **ignore:** comma-separated names of files or folders to skip. Matching is
+  case-insensitive. Ignored folders are not moved and not deleted (even when
+  empty in `today` mode).
 - **Directories:** add as many keys as you need under `[Directories]`. Each key (`base_dir1`, `base_dir2`, …) maps to one absolute path.
 
 ## Usage

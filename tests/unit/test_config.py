@@ -82,3 +82,33 @@ def test_settings_model_defaults() -> None:
 
     assert settings.mode is Mode.BY_MODIFIED_DATE
     assert settings.date_format == "%Y_%m_%d"
+    assert settings.ignore == []
+
+
+def test_load_settings_parses_ignore_list(tmp_path: Path) -> None:
+    ini = tmp_path / "settings.ini"
+    _write_ini(
+        ini,
+        "[Settings]\n"
+        "mode = today\n"
+        "ignore = rechnungen_unbearbeitet, archive,  important_files\n"
+        "\n"
+        "[Directories]\n"
+        f"base_dir1 = {tmp_path / 'work'}\n",
+    )
+
+    settings = load_settings(ini)
+
+    assert settings.ignore == ["rechnungen_unbearbeitet", "archive", "important_files"]
+
+
+def test_load_settings_ignore_defaults_to_empty_list(tmp_path: Path) -> None:
+    ini = tmp_path / "settings.ini"
+    _write_ini(
+        ini,
+        f"[Settings]\nmode = today\n\n[Directories]\nbase_dir1 = {tmp_path / 'work'}\n",
+    )
+
+    settings = load_settings(ini)
+
+    assert settings.ignore == []

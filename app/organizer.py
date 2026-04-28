@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 class FileOrganizer:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
+        self._ignored_names: frozenset[str] = frozenset(name.casefold() for name in settings.ignore)
 
     def organize(self, directory: Path) -> None:
         if self._settings.mode is Mode.BY_MODIFIED_DATE:
@@ -24,10 +25,16 @@ class FileOrganizer:
 
     def _organize_by_modified_date(self, directory: Path) -> None:
         for entry in directory.iterdir():
+            if self._is_ignored(entry):
+                log.debug("Ignoring %s", entry)
+                continue
             if not entry.is_file():
                 continue
             target_dir = directory / self._format_mtime(entry)
-            self._move_into(entry, target_dir)
+            try:
+                self._move_into(entry, target_dir)
+            except OSError as exc:
+                log.warning("Could not move %s: %s", entry, exc)
 
     def _organize_today(self, directory: Path) -> None:
         target_name = datetime.now().strftime(self._settings.date_format)
@@ -35,7 +42,27 @@ class FileOrganizer:
         for entry in directory.iterdir():
             if entry == target_dir:
                 continue
-            self._move_into(entry, target_dir)
+            if self._is_ignored(entry):
+                log.debug("Ignoring %s", entry)
+                continue
+            if self._is_empty_dir(entry):
+                try:
+                    entry.rmdir()
+                    log.debug("Removed empty folder %s", entry)
+                except OSError as exc:
+                    log.warning("Could not remove empty folder %s: %s", entry, exc)
+                continue
+            try:
+                self._move_into(entry, target_dir)
+            except OSError as exc:
+                log.warning("Could not move %s: %s", entry, exc)
+
+    def _is_ignored(self, entry: Path) -> bool:
+        return entry.name.casefold() in self._ignored_names
+
+    @staticmethod
+    def _is_empty_dir(entry: Path) -> bool:
+        return entry.is_dir() and not any(entry.iterdir())
 
     def _format_mtime(self, file_path: Path) -> str:
         mod_time = file_path.stat().st_mtime

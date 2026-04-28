@@ -13,6 +13,7 @@ from app.constants import (
     DATE_FORMAT_KEY,
     DEFAULT_DATE_FORMAT,
     DIRECTORIES_SECTION,
+    IGNORE_KEY,
     MODE_KEY,
     SETTINGS_SECTION,
 )
@@ -27,12 +28,20 @@ class Settings(BaseModel):
     mode: Mode = Mode.BY_MODIFIED_DATE
     date_format: str = DEFAULT_DATE_FORMAT
     directories: list[Path] = Field(min_length=1)
+    ignore: list[str] = Field(default_factory=list)
 
     @field_validator("directories", mode="before")
     @classmethod
     def _strip_whitespace(cls, value: object) -> object:
         if isinstance(value, list):
             return [v.strip() if isinstance(v, str) else v for v in value]
+        return value
+
+    @field_validator("ignore", mode="before")
+    @classmethod
+    def _split_ignore_list(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
 
@@ -58,6 +67,8 @@ def load_settings(path: Path) -> Settings:
             raw[MODE_KEY] = section[MODE_KEY].strip()
         if DATE_FORMAT_KEY in section:
             raw[DATE_FORMAT_KEY] = section[DATE_FORMAT_KEY]
+        if IGNORE_KEY in section:
+            raw[IGNORE_KEY] = section[IGNORE_KEY]
 
     raw["directories"] = [parser[DIRECTORIES_SECTION][key] for key in parser[DIRECTORIES_SECTION]]
 
