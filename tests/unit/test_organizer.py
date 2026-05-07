@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -94,6 +94,60 @@ def test_today_mode_is_idempotent(tmp_path: Path) -> None:
     assert today_dir.is_dir()
     assert (today_dir / "a.txt").is_file()
     assert not (today_dir / today).exists()
+
+
+def test_today_mode_skips_existing_date_folders(tmp_path: Path) -> None:
+    old_date_dir = tmp_path / "20230101"
+    old_date_dir.mkdir()
+    (old_date_dir / "kept.txt").write_text("x", encoding="utf-8")
+    file_a = tmp_path / "a.txt"
+    _touch_with_mtime(file_a, 2023, 6, 13)
+
+    FileOrganizer(_make_settings(Mode.TODAY, tmp_path)).organize(tmp_path)
+
+    today = datetime.now().strftime(DATE_FORMAT)
+    today_dir = tmp_path / today
+
+    assert old_date_dir.is_dir()
+    assert (old_date_dir / "kept.txt").is_file()
+    assert not (today_dir / "20230101").exists()
+    assert (today_dir / "a.txt").is_file()
+
+
+def test_today_mode_re_run_on_new_day_does_not_nest(tmp_path: Path) -> None:
+    yesterday = (datetime.now() - timedelta(days=1)).strftime(DATE_FORMAT)
+    yesterday_dir = tmp_path / yesterday
+    yesterday_dir.mkdir()
+    (yesterday_dir / "old.txt").write_text("x", encoding="utf-8")
+    file_a = tmp_path / "a.txt"
+    _touch_with_mtime(file_a, 2023, 6, 13)
+
+    FileOrganizer(_make_settings(Mode.TODAY, tmp_path)).organize(tmp_path)
+
+    today = datetime.now().strftime(DATE_FORMAT)
+    today_dir = tmp_path / today
+
+    assert yesterday_dir.is_dir()
+    assert (yesterday_dir / "old.txt").is_file()
+    assert not (today_dir / yesterday).exists()
+    assert (today_dir / "a.txt").is_file()
+
+
+def test_today_mode_does_not_treat_random_folder_as_date(tmp_path: Path) -> None:
+    notes = tmp_path / "notes"
+    notes.mkdir()
+    (notes / "n.txt").write_text("x", encoding="utf-8")
+    file_a = tmp_path / "a.txt"
+    _touch_with_mtime(file_a, 2023, 6, 13)
+
+    FileOrganizer(_make_settings(Mode.TODAY, tmp_path)).organize(tmp_path)
+
+    today = datetime.now().strftime(DATE_FORMAT)
+    today_dir = tmp_path / today
+
+    assert (today_dir / "notes" / "n.txt").is_file()
+    assert (today_dir / "a.txt").is_file()
+    assert not notes.exists()
 
 
 def test_today_mode_skips_when_directory_is_empty(tmp_path: Path) -> None:

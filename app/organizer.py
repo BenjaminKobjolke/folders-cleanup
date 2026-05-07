@@ -45,6 +45,9 @@ class FileOrganizer:
             if self._is_ignored(entry):
                 log.debug("Ignoring %s", entry)
                 continue
+            if self._is_date_folder(entry):
+                log.debug("Skipping existing date folder %s", entry)
+                continue
             if self._is_empty_dir(entry):
                 try:
                     entry.rmdir()
@@ -59,6 +62,15 @@ class FileOrganizer:
 
     def _is_ignored(self, entry: Path) -> bool:
         return entry.name.casefold() in self._ignored_names
+
+    def _is_date_folder(self, entry: Path) -> bool:
+        if not entry.is_dir():
+            return False
+        try:
+            datetime.strptime(entry.name, self._settings.date_format)
+        except ValueError:
+            return False
+        return True
 
     @staticmethod
     def _is_empty_dir(entry: Path) -> bool:
